@@ -1,9 +1,9 @@
 import gradio as gr
 import requests
-import json
 import mimetypes
+import os
 
-test_host = "https://n8n-kgyg.onrender.com/webhook-test/invoice"
+
 
 
 def process_invoice(file):
@@ -23,19 +23,21 @@ def process_invoice(file):
             "file": (filename, file_bytes, mine_type)
         }
 
-        response = requests.post(test_host, files=files)
+        response = requests.post(os.getenv("N8N_WEBHOOK_TEST_URL"), files=files)
         # # Check for errors
         response.raise_for_status()
         return response.json()
 
 
-iface = gr.Interface(
-    fn=process_invoice,
-    inputs=gr.File(label="Upload Invoice"),
-    outputs="json",
-    title="Ivoice Agent Demo"
-)
 
+def main():
+    iface = gr.Interface(
+        fn=process_invoice,
+        inputs=gr.File(label="Upload Invoice"),
+        outputs="json",
+        title="Invoice Agent Demo"
+        )
+    iface.launch()
 
 if __name__ == "__main__":
-    iface.launch(debug=True)
+    main()

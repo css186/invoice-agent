@@ -317,13 +317,17 @@ wheels = [
 [[package]]
 name = "invoice-agent"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "gradio" },
+    { name = "requests" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "gradio", specifier = ">=5.25.2" }]
+requires-dist = [
+    { name = "gradio", specifier = ">=5.25.2" },
+    { name = "requests" },
+]
 
 [[package]]
 name = "jinja2"

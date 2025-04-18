@@ -1,0 +1,2 @@
+[console_scripts]
+invoice_gradio = gradio_app.app:main

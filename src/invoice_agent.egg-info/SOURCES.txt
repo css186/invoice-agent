@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+src/gradio_app/app.py
+src/invoice_agent.egg-info/PKG-INFO
+src/invoice_agent.egg-info/SOURCES.txt
+src/invoice_agent.egg-info/dependency_links.txt
+src/invoice_agent.egg-info/entry_points.txt
+src/invoice_agent.egg-info/requires.txt
+src/invoice_agent.egg-info/top_level.txt

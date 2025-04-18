@@ -6,4 +6,17 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "gradio>=5.25.2",
+    "requests"
 ]
+
+[project.scripts]
+invoice_gradio = "gradio_app.app:main"
+# invoice_service = "service.service:run_service"
+
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
