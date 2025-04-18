@@ -1,1 +1,24 @@
 # invoice-agent
+
+
+# n8n Self-Hosting Using Free Resources
+### 1. Register a Render Account Using Free Tier Plan
+
+
+### 2. Run an n8n Image
+Registration link: docker.n8n.io/n8nio/n8n
+* Open a Webservice deployment on Render.com
+* Paste the link above at the input box of Image URL
+* Connect and wait
+
+
+### 3. Use Cron Job to 
+Because the server for Free Tier plan users at Render will spin off periodically, resulting every registration on n8n to restart,
+so we could utilize Cron Jon to send request regularly to keep the server from spinning off
+
+# n8n Webhook Creation
+Add a Node of Webhook
+* HTTP Method: POST
+* Path: invoice
+* Response: Immediately
+* Options: Select Field Name for Binary Data -> type "file"
