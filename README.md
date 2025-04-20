@@ -1,17 +1,183 @@
-# invoice-agent
+# Invoice Agent
+## Description
+This is a invoice matching service that leverages OCR and AI to streamline operations.
+It supports seamless invoice uploads (in either image or PDF format), with a large language model (LLM) for structured data extraction.
+
+The system uses Redis to cache the product list you want to match, and provides fuzzy matching on the fly. Users can interact through an intuitive Gradio frontend, while n8n powers a robust automation workflow.
+
+## Demo Video
+https://youtu.be/Pfk4DfF9nHo
+
+## Project Structure
+```
+.
+├── src/
+│   ├── app.py               # Gradio Frontend Interface
+│   ├── service.py           # FastAPI service for fuzzy matching
+│   ├── models/              # Pydantic (validating data between APIs)
+│   ├── utils/               # Utility functions (e.g. main logic of fuzzy matching)
+├── Dockerfile.fastapi       # Dockerfile for fastAPI service
+├── Dockerfile.gradio        # Dockerfile for Gradio app
+├── docker-compose.yml       # Start the whole service
+```
+
+## How to Start the Service
+```
+docker compose up --build
+```
+Once the service is running, the following services will be available:
+* Gradio Frontend: Access the interface at `http://localhost:7860`
+* FastAPI API: `http://localhost:8000`
+* n8n Workflow Designer: Manage workflows at `http://localhost:5678`
+* Redis: Runs on `port 6379`
+
+## Credential Setup in n8n (just in case)
+There are some credentials needed to be set up beforehand because I am using external APIs (e.g., Google Vision, OpenAI). In case the n8n workflow cannot be executed as expected due to crednetial reasons, here are some instructions
+1. 
+
+## Details of n8n Workflow Design
+### Part A. Upload Product List
+![Workflow for Uploading Product List](img/image.png)
+1. **Users upload list of products either in .xlsx or .csv format**
+In a typical scenario, the system would pull a product list from a database for matching. However, to prioritize convenience and flexibility, I utilize Redis for temporary caching. Users can easily upload a product list (.xlsx or .csv) through the Gradio frontend at any time, allowing the system to store “product information” in memory. This enables seamless fuzzy matching later, making the process both efficient and adaptable.
+1.1. The uploading operation is performed on Gradio
+1.2. The API calling, data communication, and the trigger of the workflow is in the Webhook node in n8n
+2. **Webhook receive data**
+
+3. **Data Cleaning and Storing**
+The following processes were implemented to not only prevent errors from inconsistent data, but create a structured dataset optimzed for fuzzy matching.
+* Filling missing values with 0
+* Ensure Unit Price is Float
+* Filter Empty Rows
+**The code in this part is written in Python using the Code Node inside n8n**
+
+4. **Store data in Redis**
+Data is formatted and stored using k-v pair style into Redis, which is efficient for retrieval and fuzzy matching in later workflow
+
+5. **Return the storage result by Respond to webhook**
+To provide interactive experience
+
+### Part B. Invoice OCR/LLM and Fuzzy Matching 
+![Workflow for Invoice Matching](img/image1.png)
+
+1. **Users upload invoice either in images or PDF format**
+The upload process is decribed below
+* Upload Image or PDF
+    * Supported Formats: .jpg, .png, .pdf
+    * Function Triggered: Initiates the upload_invoice function to handle the uploaded file.
+* Gradio Image Quality Check (via `image_checker.py`)
+✅ Pass: If the image is valid (not blank or completely black), the system proceeds with processing.
+❌ Fail: If the image is blank or all black, an error message is displayed, and the upload is halted.
+
+2. **Webhook receive data**
+
+3. **Image Processing and OCR**
+In this step, JSON request containing image data (in base64 type) will be processed, and convert to another JSON format such that the service can invoke Google Vision API for OCR.
+* Why Google Vision API:
+    * I tried self-building API using Tesseract and EasyOCR, but failed on surpassing Google Vision interms of accuracy, especially in Chinese characters. Therefore, I decided to use Google Vision in order to have better output so that the downstream LLM processing could also do better job on structuring the text.
+
+4. **Data Cleaning**
+Since the response JSON from Google Vision also needs to be processed so that we could use the text to feed downstream LLM, I added another Code Node here to do this job.
+
+5. **Parallel Workflow**
+Here I split the workflow into two parallel flow because I also have to get the product list from Redis to prepare for fuzzy matching
+**5-1. Downstream LLM Process**
+The LLM chosen was OpenAI.
+I set a system prompt for the LLM to process OCR text into a structured JSON.
+The original prompt is configured in Chinese, but I will also post it in English here
+```
+Chinese Version:
+你是一位資料擷取助手，專門從中文發票或訂單文字中擷取關鍵資訊。
+請根據提供的文字資料，輸出一個結構化的 JSON 格式，包含以下欄位：
+- "customer_name": 顧客名稱，若無資訊請填入 null
+- "order_date": 訂單日期（格式建議為 yyyy-mm-dd），若無資訊請填入null
+- "items": 每個商品一筆記錄，包含：
+  - "original_input": 原始的文字輸入
+  - "item_name": 商品名稱，若無法判斷請填入 null
+  - "quantity": 數量，若無請填入 null
+  - "unit": 單位（如 斤、支、盒 等），若無請填入 null
+  - "note": 其他備註，例如規格（可為 null）
+請僅輸出合法的 JSON 字串，**不要加入多餘文字或解釋**。
+
+English Version:
+You are a data extraction assistant specialized in extracting key information from text found on Chinese invoices or orders.
+Based on the provided text data, please output a structured JSON format containing the following fields:
+- "customer_name": Customer name, if information is missing, fill with null
+- "order_date": Order date (recommended format yyyy-mm-dd), if information is missing, fill with null
+- "items": An array of records, one for each item, containing:
+  - "original_input": The original text input for the item line
+  - "item_name": Item name, if indeterminable, fill with null
+  - "quantity": Quantity, if missing, fill with null
+  - "unit": Unit (e.g., catty, piece, box, etc.), if missing, fill with null
+  - "note": Other notes, such as specifications (can be null)
+Please output only a valid JSON string. **Do not add any extra text or explanations.**
+```
+
+There are some benefits in explicitly predefining the system prompt:
+* This can guarantee that the extracted data from OCR text is consistent, uniform, making it easier to integrate with other downstream processes (besides fuzzy matching).
+* The prompt can instruct the LLM to use null for missing or indeterministic values, preventing extra efforts on exception handling and maintain data integrity.
+* The logic is centralized and easy to update or extend.
 
 
-# n8n Self-Hosting Using Free Resources
+**5-2. Redis Data Retrieval + Processing**
+This main purpose of this step is to retreive product list data from Redis, and convert it into the following format that is easier for merging the result from LLM
+```
+{"product_list": [{item object 1}, {item object 2} ... ]}
+```
+6. **Merging & Cleaning Step (Post-LLM + Redis Merge)**
+This step is to consolidate structured text from LLM with Redis product data.
+Metadata extracted are as follows:
+* customer_name: prioritizes LLM output, falls back to earlier value or default "未知客戶".
+* order_date: prioritizes LLM output, falls back to earlier value or today() date.
+The code also retrieves item list from structured content (items), defaults to empty list if missing. It handles optional formats like [{"index": 0, "message": {...}}] by extracting inner message.
+The final output includes:
+* customer_name
+* order_date
+* items (from LLM)
+* product_list (from Redis query)
+
+7. **Call Self-built API for Fuzzy Matching**
+Since complex logic and external libraries cannot be implemented inside n8n's Code Node, so I moved the fuzzy matching process outside, leaving only HTTP Request in the workflow. How I implemented the fuzzy matching algorithm will be explained later.
+
+To sum up this step, merged data from Step 6 will be passed to the FastAPI endpoint. The API will response the matching result between items on the invoice and the product list, with a matching score. The format will look like this
+```
+{
+"product_id": "some id",
+"matched_name": "item name inside the product list",
+"original_input": "item name from the invoice",
+"quantity": some number,
+"unit_price": some number,
+"subtotal": some number,
+"match_score": matching score (between 0 to 1)
+}
+```
+Also, this FastAPI interface will finalize the JSON that would be return to the user/frontend as per the requirement doc.
+
+8. **Finalizing Step**
+I set a if-else node here to examine all records containing matching score that is less than 0.6.
+* If < 0.6 :
+    * Records with matching score less than 0.6 will be extracted into an email as part of the text
+    * The email was set up using SMTP with Gmail credentials.
+    * status field of the JSON will be reset to "pending" (originally it was "completed")
+* If > 0.6:
+    * Nothing will happend to the record
+
+Regardless there are records with matching score less than 0.6 or not, the while JSON response will be returned to the frontend (or could be further stored into a database). 
+
+
+## The Implementation of Fuzzy Matching
+Please refer the the code inside utils directory named `fuzzy_matcher.py`.
+Here is the explanation:
+
+
+# Side notes: n8n Self-Hosting Using Free Resources
+
 ### 1. Register a Render Account Using Free Tier Plan
-
-
 ### 2. Run an n8n Image
 Registration link: docker.n8n.io/n8nio/n8n
 * Open a Webservice deployment on Render.com
 * Paste the link above at the input box of Image URL
 * Connect and wait
-
-
 ### 3. Use Cron Job to 
 Because the server for Free Tier plan users at Render will spin off periodically, resulting every registration on n8n to restart,
 so we could utilize Cron Jon to send request regularly to keep the server from spinning off
