@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from models.orders import MatchRequest
@@ -24,11 +24,6 @@ async def match_products(payload: MatchRequest):
     result["customer_name"] = payload.customer_name
     result["order_date"] = payload.order_date
     return result
-
-@app.post("/callback")
-async def callback(request: Request):
-    data = await request.json()
-    return data
 
 
 def run_service():

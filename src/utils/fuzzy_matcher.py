@@ -34,7 +34,7 @@ def match_items(items: List[Item], products: List[Product], customer_name=None, 
 
         for product in products:
             product_name_raw = product.product_name.strip()
-            aliases = product_name_raw.split("/")  # 支援別名
+            aliases = product_name_raw.split("/")  # 支援alias
 
             for alias in aliases:
                 alias = alias.strip()

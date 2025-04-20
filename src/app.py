@@ -9,20 +9,30 @@ import pandas as pd
 from utils.image_checker import is_blank_image, is_mostly_black_image, is_mostly_black_pdf_from_pages
 
 load_dotenv()
-POLL_API = os.getenv("POLL_API")
+
+WEBHOOKS_INVOICE = {
+    "Invoice正式環境": os.getenv("N8N_WEBHOOK_INVOICE_PROD"),
+    "Invoice測試環境": os.getenv("N8N_WEBHOOK_INVOICE_TEST"),
+}
+
+WEBHOOKS_PRODUCTS = {
+    "Products正式環境": os.getenv("N8N_WEBHOOK_PRODUCTS_PROD"),
+    "Products測試環境": os.getenv("N8N_WEBHOOK_PRODUCTS_TEST"),
+}
 
 # --- Upload Invoice ---
-def upload_invoice(uploaded):
+def upload_invoice(uploaded, env_choice="Invoice正式環境"):
     if uploaded is None:
         return {"error": "No file uploaded yet"}
     
-    url = os.getenv("N8N_WEBHOOK_INVOICE_LOCAL")
+    url = WEBHOOKS_INVOICE.get(env_choice)
     if not url:
-        return {"error": "N8N_WEBHOOK_INVOICE_LOCAL not configured"}
+        return {"error": f"Webhook URL not configured for {env_choice}"}
 
     file_path = uploaded.name
     filename = os.path.basename(file_path)
 
+    # Check if the file is a PDF or an image
     if file_path.lower().endswith(".pdf"):
         pages = []
         try:
@@ -65,7 +75,7 @@ def upload_invoice(uploaded):
 
     # Send to n8n
     try:
-        resp = requests.post(url, json=payload, timeout=90)
+        resp = requests.post(url, json=payload, timeout=150)
         resp.raise_for_status()
         return resp.json()
     
@@ -76,20 +86,23 @@ def upload_invoice(uploaded):
 
 
 # --- Upload Product List ---
-def upload_products(uploaded):
+def upload_products(uploaded, env_choice="Products正式環境"):
     if uploaded is None:
         return {"error": "No file uploaded yet"}
     
-    url = os.getenv("N8N_WEBHOOK_PRODUCTS_LOCAL")
+    url = WEBHOOKS_PRODUCTS.get(env_choice)
     if not url:
-        return {"error": "N8N_WEBHOOK_PRODUCTS_LOCAL not configured"}
+        return {"error": f"Webhook URL not configured for {env_choice}"}
     
     file_path = uploaded.name
     
     try:
-        df = pd.read_excel(file_path)
+        if file_path.lower().endswith(".csv"):
+            df = pd.read_csv(file_path)
+        else:
+            df = pd.read_excel(file_path)
     except Exception as e:
-        return {"error": f"Failed to read Excel file: {e}"}
+        return {"error": f"Failed to read file: {e}"}
     
     # Convert DataFrame to JSON
     records = []
@@ -111,10 +124,6 @@ def upload_products(uploaded):
         return {"error": str(e)}
 
 
-# def poll_job(job_id):
-#     try:
-#         resp = requests.get(f"{POLL_API}?job_id={job_id}", timeout=30)
-#         resp.raise_for_status()
 
 def main():
     with gr.Blocks() as demo:
@@ -123,17 +132,26 @@ def main():
         with gr.Tabs():
             # 分頁 1：OCR 上傳
             with gr.TabItem("Invoice上傳"):
+                env_choice = gr.Dropdown(
+                    choices=list(WEBHOOKS_INVOICE.keys()),
+                    value="Invoice正式環境",
+                    label="Webhook環境選擇"
+                )
                 upload_img = gr.File(label="請上傳圖片或 PDF")
                 ocr_out    = gr.JSON(label="OCR & 結構化結果")
-                upload_img.change(fn=upload_invoice, inputs=upload_img, outputs=ocr_out)
+                upload_img.change(fn=upload_invoice, inputs=[upload_img, env_choice], outputs=ocr_out)
 
             # 分頁 2：產品清單上傳
             with gr.TabItem("產品清單上傳"):
-                upload_xlsx = gr.File(label="請上傳產品清單 (.xlsx)")
+                env_choice = gr.Dropdown(
+                    choices=list(WEBHOOKS_PRODUCTS.keys()),
+                    value="Products正式環境",
+                    label="Webhook環境選擇"
+                )
+                upload_xlsx = gr.File(label="請上傳產品清單 (.xlsx 或 .csv)")
                 prod_out    = gr.JSON(label="產品清單處理結果")
-                upload_xlsx.change(fn=upload_products, inputs=upload_xlsx, outputs=prod_out)
-
-        demo.launch()
+                upload_xlsx.change(fn=upload_products, inputs=[upload_xlsx, env_choice], outputs=prod_out)
+        demo.launch(server_name="0.0.0.0", server_port=7860)
 
 if __name__ == "__main__":
     main()
