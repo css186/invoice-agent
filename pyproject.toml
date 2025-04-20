@@ -9,22 +9,29 @@ dependencies = [
     "easyocr>=1.7.2",
     "fastapi>=0.115.12",
     "gradio>=5.25.2",
+    "jieba>=0.42.1",
     "openpyxl>=3.1.5",
     "pymupdf>=1.25.5",
     "python-multipart>=0.0.20",
+    "rapidfuzz>=3.13.0",
     "requests",
     "torchvision>=0.21.0",
     "uvicorn>=0.34.1",
 ]
 
 [project.scripts]
-invoice_gradio = "gradio_app.app:main"
-invoice_service = "service.service:run_service"
+invoice_gradio = "app:main"
+invoice_service = "service:run_service"
 
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = false
+include = ["utils", "models"]

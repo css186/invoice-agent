@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 import gradio as gr
 
 import pandas as pd
-from io import BytesIO
+from utils.image_checker import is_blank_image, is_mostly_black_image, is_mostly_black_pdf_from_pages
 
 load_dotenv()
+POLL_API = os.getenv("POLL_API")
 
 # --- Upload Invoice ---
 def upload_invoice(uploaded):
@@ -36,17 +37,25 @@ def upload_invoice(uploaded):
                 "page": i + 1,
                 "data": base64.b64encode(img_b).decode()
             })
+
+        if is_mostly_black_pdf_from_pages(pages):
+            return {"error": "PDF 看起來是全黑的，請上傳有效的發票。"}
+        
         payload = {
             "fileType": "pdf",
             "filename": filename,
             "pages": pages
         }
+    # images
     else:
         try:
             with open(file_path, "rb") as f:
                 img_b = f.read()
         except Exception as e:
             return {"error": f"Failed to read image: {e}"}
+        
+        if is_blank_image(img_b) or is_mostly_black_image(img_b):
+            return {"error": "圖片看起來是空白或全黑的，請上傳有效的發票。"}
 
         payload = {
             "fileType": "image",
@@ -56,12 +65,12 @@ def upload_invoice(uploaded):
 
     # Send to n8n
     try:
-        resp = requests.post(url, json=payload, timeout=30)
+        resp = requests.post(url, json=payload, timeout=90)
         resp.raise_for_status()
+        return resp.json()
+    
     except requests.RequestException as e:
         return {"error": str(e)}
-    try:
-        return resp.json()
     except ValueError:
         return {"error": "Invalid JSON response", "raw": resp.text}
 
@@ -94,14 +103,18 @@ def upload_products(uploaded):
         })
 
     try:
-        resp = requests.post(url, json=records, timeout=30)
+        resp = requests.post(url, json=records, timeout=150)
         resp.raise_for_status()
+        return resp.json()
+    
     except requests.RequestException as e:
         return {"error": str(e)}
-    try:
-        return resp.json()
-    except ValueError:
-        return {"error": "Invalid JSON response", "raw": resp.text}
+
+
+# def poll_job(job_id):
+#     try:
+#         resp = requests.get(f"{POLL_API}?job_id={job_id}", timeout=30)
+#         resp.raise_for_status()
 
 def main():
     with gr.Blocks() as demo:
