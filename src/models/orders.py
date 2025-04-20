@@ -5,7 +5,7 @@ from datetime import date
 class Item(BaseModel):
     original_input: str
     item_name: str
-    quantity: Optional[float] = None
+    quantity: Optional[str] = None
     unit: Optional[str] = None
 
 class Product(BaseModel):
