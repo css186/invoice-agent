@@ -1,3 +1,4 @@
 .env
 __pycache__
 invoice_agent.egg-info
+.DS_Store
