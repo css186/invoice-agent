@@ -1,0 +1,119 @@
+{
+  "name": "Upload Product List Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "products",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6b7d0ffc-6f62-429d-b084-bc8b75577251",
+      "name": "Webhook",
+      "webhookId": "b31eb448-1cfe-4c15-a301-69e6e25d110f"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "products = items[0][\"json\"][\"body\"]\n\noutput = []\n\nfor product in products:\n  output.append({\n    \"json\": {\n      \"key\": f\"product:{product.get('id')}\",\n      \"value\": {\n        \"id\": product.get(\"id\"),\n        \"product_name\": product.get(\"product_name\"),\n        \"unit\": product.get(\"unit\"),\n        \"currency\": product.get(\"currency\"),\n        \"unit_price\": float(product.get(\"unit_price\", 0))\n      }\n    }\n  })\n\nreturn output"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ],
+      "id": "c861eda3-8c36-496d-997d-a1235531eedf",
+      "name": "Data Cleaning and Storing"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json.key }}",
+        "value": "={{ $json.value }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        420,
+        0
+      ],
+      "id": "c663f832-fc53-40a4-9d0b-7eebc139b2eb",
+      "name": "Store to Redis",
+      "credentials": {
+        "redis": {
+          "id": "FGMwFw4spFFkLHJg",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        0
+      ],
+      "id": "ff98b63c-accf-4ea8-8acd-8828ee1b96e5",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Data Cleaning and Storing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Cleaning and Storing": {
+      "main": [
+        [
+          {
+            "node": "Store to Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store to Redis": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2cc682e7-c754-4629-b472-c2555f038a0e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8ea60d70c9fa85bbc068ecb5c0020a1826350328ac09e02b82b4bae5863e9808"
+  },
+  "id": "VA3uiVyMeZ1wfL41",
+  "tags": []
+}
