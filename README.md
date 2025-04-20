@@ -5,8 +5,12 @@ It supports seamless invoice uploads (in either image or PDF format), with a lar
 
 The system uses Redis to cache the product list you want to match, and provides fuzzy matching on the fly. Users can interact through an intuitive Gradio frontend, while n8n powers a robust automation workflow.
 
+---
+
 ## Demo Video
 https://youtu.be/Pfk4DfF9nHo
+
+---
 
 ## Project Structure
 ```
@@ -20,6 +24,7 @@ https://youtu.be/Pfk4DfF9nHo
 ├── Dockerfile.gradio        # Dockerfile for Gradio app
 ├── docker-compose.yml       # Start the whole service
 ```
+---
 
 ## How to Start the Service
 ```
@@ -31,9 +36,40 @@ Once the service is running, the following services will be available:
 * n8n Workflow Designer: Manage workflows at `http://localhost:5678`
 * Redis: Runs on `port 6379`
 
+---
+
 ## Credential Setup in n8n (just in case)
 There are some credentials needed to be set up beforehand because I am using external APIs (e.g., Google Vision, OpenAI). In case the n8n workflow cannot be executed as expected due to crednetial reasons, here are some instructions
-1. 
+1. Redis
+Be sure to install Redis first. Find here for more instruction: https://redis.io/docs/latest/operate/oss_and_stack/install/archive/install-redis/
+or use docker: https://hub.docker.com/_/redis
+
+Type in the following field and value
+* Host: redis
+* Port: 6379
+
+2. OpenAI
+* API Key: Your OpenAI key
+* Base URL: https://api.openai.com/v1
+
+3. Google Service:
+Here: https://console.cloud.google.com/iam-admin/serviceaccounts
+Instructions: https://developers.google.com/workspace/guides/create-credentials
+After registrating the API key, a JSON credential file will be automatically downloaded
+* Service Account Email: The one from the JSON credential
+* Private Key: Also from the JSON crednetial 
+* Set up for use in HTTP Request node: Yes (Toggle On)
+* Scope(s): https://www.googleapis.com/auth/cloud-vision
+
+4. SMTP for Gmail
+Go to https://myaccount.google.com/apppasswords to apply password
+* User: your gmail
+* Password: The one you applied
+* Host: smtp.gmail.com
+* Port: 587
+* No SSL/TLS or Disabled STARTLS (Keep Toggle off)
+
+---
 
 ## Details of n8n Workflow Design
 ### Part A. Upload Product List
@@ -164,11 +200,32 @@ I set a if-else node here to examine all records containing matching score that 
 
 Regardless there are records with matching score less than 0.6 or not, the while JSON response will be returned to the frontend (or could be further stored into a database). 
 
+---
 
 ## The Implementation of Fuzzy Matching
 Please refer the the code inside utils directory named `fuzzy_matcher.py`.
-Here is the explanation:
+Here are some explanations of the implementation details:
 
+1. Use `jieba.cut` to tokensize input `item_name` for later fuzzy matching. `jieb`is a library for Chinese text segmentation for improved tokenization.
+
+2. Handle Alias: Splits the product name by `/`. This allows single product entry to have multiple names or aliases. Matching is based on alias.
+
+3. Matching Strategies (per alias):
+There are 3 matching strategies:
+* Strategy 1. Exact Match:
+If the incoming `item_name` is identical to the alias, then assigns a perfect score (1.0), and set this product as the `best_match` (no need to check for other alias either).
+
+* Strategy 2. Substring Match:
+Check if `item_name` is contained within the alias or vice-versa. If true, assigns a high score(0.95) and updates the `best_match`, then continues to the next alias.
+
+* Strategy 3. Fuzzy Token Match:
+If no exact nor partial match, then uses `rapidfuzz` to calculate the score. `rapidfuzz` is a library for fast fuzzy string matching. `fuzz` is used for calculating similarity scores (`fuzz.token_sort_ratio`). After the calculation, `best_match` will be updated according to the score found so far (update with the highest score)
+
+* Threshold check:
+Leave a customizable check here to check if a `best_match` was found and meets the threshold.
+
+
+---
 
 # Side notes: n8n Self-Hosting Using Free Resources
 
