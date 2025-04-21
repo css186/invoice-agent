@@ -98,11 +98,13 @@ To provide interactive experience
 
 1. **Users upload invoice either in images or PDF format**
 The upload process is decribed below
-* Upload Image or PDF
+* Upload Image or PDF:
     * Supported Formats: .jpg, .png, .pdf
     * Function Triggered: Initiates the upload_invoice function to handle the uploaded file.
-* Gradio Image Quality Check (via `image_checker.py`)
+* Gradio Image Quality Check (via `image_checker.py`):
+
 ✅ Pass: If the image is valid (not blank or completely black), the system proceeds with processing.
+
 ❌ Fail: If the image is blank or all black, an error message is displayed, and the upload is halted.
 
 2. **Webhook receive data**
@@ -263,13 +265,6 @@ Registration link: docker.n8n.io/n8nio/n8n
 * Open a Webservice deployment on Render.com
 * Paste the link above at the input box of Image URL
 * Connect and wait
-### 3. Use Cron Job to 
+### 3. Use Cron Job to keep the server running
 Because the server for Free Tier plan users at Render will spin off periodically, resulting every registration on n8n to restart,
 so we could utilize Cron Jon to send request regularly to keep the server from spinning off
-
-# n8n Webhook Creation
-Add a Node of Webhook
-* HTTP Method: POST
-* Path: invoice
-* Response: Immediately
-* Options: Select Field Name for Binary Data -> type "file"
