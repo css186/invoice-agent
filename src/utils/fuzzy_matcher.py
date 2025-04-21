@@ -21,6 +21,7 @@ def tokenize(text):
 def match_items(items: List[Item], products: List[Product], customer_name=None, order_date=None, threshold: float = 0.5):
     matched_results = []
 
+
     for item in items:
         item_name = item.item_name.strip()
         original_input = item.original_input.strip()
@@ -32,39 +33,37 @@ def match_items(items: List[Item], products: List[Product], customer_name=None, 
 
         tokenized_item = " ".join(jieba.cut(item_name))
 
-        for product in products:
-            product_name_raw = product.product_name.strip()
-            aliases = product_name_raw.split("/")  # 支援alias
+        if products:  # 只有在有產品資料時才進行比對
+            for product in products:
+                product_name_raw = product.product_name.strip()
+                aliases = product_name_raw.split("/")  # 支援 alias
 
-            for alias in aliases:
-                alias = alias.strip()
+                for alias in aliases:
+                    alias = alias.strip()
 
-                # --- Strategy 1: 完全匹配 ---
-                if alias == item_name:
-                    best_score = 1.0
-                    best_match = product
-                    break
+                    # Strategy 1: 完全匹配
+                    if alias == item_name:
+                        best_score = 1.0
+                        best_match = product
+                        break
 
-                # --- Strategy 2: 子字串匹配 ---
-                if item_name in alias or alias in item_name:
-                    score = 0.95
+                    # Strategy 2: 子字串匹配
+                    if item_name in alias or alias in item_name:
+                        score = 0.95
+                        if score > best_score:
+                            best_score = score
+                            best_match = product
+                        continue
+
+                    # Strategy 3: 分詞模糊匹配
+                    tokenized_alias = " ".join(jieba.cut(alias))
+                    score = fuzz.token_sort_ratio(tokenized_item, tokenized_alias) / 100
+
                     if score > best_score:
                         best_score = score
                         best_match = product
-                    continue
 
-                # --- Strategy 3: 分詞模糊匹配 ---
-                tokenized_alias = " ".join(jieba.cut(alias))
-                score = fuzz.token_sort_ratio(tokenized_item, tokenized_alias) / 100
-
-                if score > best_score:
-                    best_score = score
-                    best_match = product
-
-        if not best_match or best_score < threshold:
-            continue
-
-        price = float(best_match.unit_price or 0)
+        price = float(best_match.unit_price) if best_match else 0.0
         subtotal = quantity * price
 
         result = {
