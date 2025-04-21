@@ -110,7 +110,7 @@ The upload process is decribed below
 3. **Image Processing and OCR**
 In this step, JSON request containing image data (in base64 type) will be processed, and convert to another JSON format such that the service can invoke Google Vision API for OCR.
 * Why Google Vision API:
-    * I tried self-building API using Tesseract and EasyOCR, but failed on surpassing Google Vision interms of accuracy, especially in Chinese characters. Therefore, I decided to use Google Vision in order to have better output so that the downstream LLM processing could also do better job on structuring the text.
+    * I tried self-building API using Tesseract and EasyOCR, but failed on surpassing Google Vision in terms of accuracy, especially in Chinese characters. Therefore, I decided to use Google Vision in order to have better output so that the downstream LLM processing could also do better job on structuring the text.
 
 4. **Data Cleaning**
 Since the response JSON from Google Vision also needs to be processed so that we could use the text to feed downstream LLM, I added another Code Node here to do this job.
@@ -204,9 +204,9 @@ Regardless there are records with matching score less than 0.6 or not, the while
 
 ## The Implementation of Fuzzy Matching
 Please refer the the code inside utils directory named `fuzzy_matcher.py`.
-Here are some explanations of the implementation details:
+This function is responsible for comparing `item_name` on the invoice from list of products from Redis. It aims to find the best matching product for each item even when names are not identical.
 
-1. Use `jieba.cut` to tokensize input `item_name` for later fuzzy matching. `jieb`is a library for Chinese text segmentation for improved tokenization.
+1. Whitespace was removed and input `item_name` were tokensized by `jieba.cut` for later fuzzy matching. `jieb`is a library for Chinese text segmentation for improved tokenization.
 
 2. Handle Alias: Splits the product name by `/`. This allows single product entry to have multiple names or aliases. Matching is based on alias.
 
@@ -217,12 +217,40 @@ If the incoming `item_name` is identical to the alias, then assigns a perfect sc
 
 * Strategy 2. Substring Match:
 Check if `item_name` is contained within the alias or vice-versa. If true, assigns a high score(0.95) and updates the `best_match`, then continues to the next alias.
+-> Why 0.95? Although a substring match indicates very close semantic meaning, there could still be minor differences. To distinguish it from a perfect exact match (1.0), this slightly lower score (0.95) is used as a manually defined high confidence value.
 
 * Strategy 3. Fuzzy Token Match:
 If no exact nor partial match, then uses `rapidfuzz` to calculate the score. `rapidfuzz` is a library for fast fuzzy string matching. `fuzz` is used for calculating similarity scores (`fuzz.token_sort_ratio`). After the calculation, `best_match` will be updated according to the score found so far (update with the highest score)
+-> What is `token_sort_ratio`? It is a fuzzy string matching algorithm often associated with the fuzzywuzzy library
+    * It first "tokensizes and sorts" two strings
+    * Then calculates their similarity based on the Levenshtein distance
+    * This prevents word order from affecting the matching result, e.g.:
+        *  "有機 紅蘿蔔" vs "紅蘿蔔 有機" → token_sort_ratio = 100
 
-* Threshold check:
-Leave a customizable check here to check if a `best_match` was found and meets the threshold.
+* Output Results:
+    * Edge case: If no product is found at all, the `matched_name` will be showned as "未匹配"
+    * Each comparison result will include:
+        * product ID and name
+        * matching confidence score
+        * and other information
+
+* Other takeaways:
+    * Threshold as input: Leave a customizable input theshold to determine scores. This threshold can be useful if we want to mark certain low-score item inside the JSON (not mentioned in requirement doc though)
+
+
+---
+# Deliverables
+* n8n Workflow: Please refer to the `n8n_workflow` directory
+* n8n data: Please refer to the `n8n_data` directory
+* Testing result: Please refer to `testing_result.json`
+* Workflow testing: https://youtu.be/S6-xULDt368
+
+
+---
+# Future Work
+* There is still some limitations on using Levenshtein distance to do fuzzy matching (e.g., cannot handle synonyms well, but there are lots of synonyms and variants in Chinese)
+* Since **word segmentation** is quite crucial for Chinese characters, I am considering to enhance the fuzzy matching algorithm using Jieba Segmentation plus TF-IDF
+* If possible, deep learning models such as mBERT could also be used.
 
 
 ---

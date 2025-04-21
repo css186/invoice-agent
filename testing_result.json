@@ -1,0 +1,65 @@
+[
+  {
+    "customer_name": "未知客戶",
+    "order_date": "2025-04-20",
+    "items": [
+      {
+        "product_id": "Q033072",
+        "matched_name": "肉卷/肉捲",
+        "original_input": "東坡肉12x1242瑰",
+        "quantity": 12,
+        "unit_price": 0,
+        "subtotal": 0,
+        "match_score": 0.5714
+      },
+      {
+        "product_id": "H001170",
+        "matched_name": "魚皮",
+        "original_input": "猪皮 8斤",
+        "quantity": 8,
+        "unit_price": 0,
+        "subtotal": 0,
+        "match_score": 0.5
+      },
+      {
+        "product_id": "J009354",
+        "matched_name": "豬絞肉/細",
+        "original_input": "細肉絲5斤",
+        "quantity": 5,
+        "unit_price": 0,
+        "subtotal": 0,
+        "match_score": 0.95
+      },
+      {
+        "product_id": "J009182",
+        "matched_name": "腩排\\子排\\中排4.5*4.5",
+        "original_input": "腩排 10斤3x3",
+        "quantity": 10,
+        "unit_price": 0,
+        "subtotal": 0,
+        "match_score": 0.95
+      },
+      {
+        "product_id": "Q007042",
+        "matched_name": "肴豬腳",
+        "original_input": "肴豬腳 10支",
+        "quantity": 10,
+        "unit_price": 0,
+        "subtotal": 0,
+        "match_score": 1
+      },
+      {
+        "product_id": "E009080",
+        "matched_name": "蒜泥",
+        "original_input": "蒜泥白肉 2斤",
+        "quantity": 2,
+        "unit_price": 0,
+        "subtotal": 0,
+        "match_score": 0.95
+      }
+    ],
+    "total_amount": 0,
+    "tax": 0,
+    "status": "pending"
+  }
+]
